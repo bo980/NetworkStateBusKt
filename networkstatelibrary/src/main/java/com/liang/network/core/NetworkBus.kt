@@ -20,9 +20,6 @@ class NetworkBus private constructor() {
         }
     }
 
-    @Volatile
-    private var mState: State = State.NONE
-
     private val networkStateLiveData: MutableLiveData<State> by lazy {
         MutableLiveData<State>()
     }
@@ -39,11 +36,10 @@ class NetworkBus private constructor() {
 
     init {
         networkStateLiveData.observeForever {
-            mState = it
             version++
             stateBusPools.forEach { _, v ->
                 if (version > v.getVersion()) {
-                    v.postState(mState)
+                    v.postState(it)
                 }
             }
         }
@@ -52,8 +48,10 @@ class NetworkBus private constructor() {
     fun with(lifecycleOwner: LifecycleOwner): IBus {
         return stateBusPools.put(NetStateBus().apply {
             bindLifecycle(lifecycleOwner.lifecycle)
-            if (version > getVersion()) {
-                postState(mState)
+            networkStateLiveData.value?.let {
+                if (version > getVersion()) {
+                    postState(it)
+                }
             }
         })
     }
